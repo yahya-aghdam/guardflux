@@ -1,0 +1,33 @@
+{
+  "name": "guardflux",
+  "version": "1.0.0",
+  "description": "A light callable lib to keep your API alive",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "type-check": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yahya-aghdam/guardflux.git"
+  },
+  "keywords": [
+    "API",
+    "Express",
+    "Nextjs",
+    "Nestjs",
+    "Ratelimit",
+    "Security",
+    "DDoS"
+  ],
+  "author": "Yahya Parvin Aghdam",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yahya-aghdam/guardflux/issues"
+  },
+  "homepage": "https://github.com/yahya-aghdam/guardflux#readme",
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

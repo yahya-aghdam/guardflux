@@ -3,27 +3,33 @@ import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { MySqlDriver } from '@mikro-orm/mysql';
 import { SqliteDriver } from '@mikro-orm/sqlite';
 import { MongoDriver } from '@mikro-orm/mongodb';
-import { CheckResult, DBT, Keys, RateLimitOptions } from './lib/types';
+import { CheckResult, DBT, Keys, LogInput, RateLimitOptions } from './lib/types';
 import { Log, RateLimit } from './lib/entities';
 import { dbDefualtName } from './lib/constants';
+import { notValidObj, userKeyInDBIsNull, userKeyInDBIsUndefined, userKeyIsNotMatch, userKeyIsUndefined, userReachMaxRateLimit } from './lib/messages';
 
 
 
 export default class GuardFlux {
     private orm?: MikroORM;
     private em?: EntityManager;
-    private dbUrl: string;
+    private dbURI: string;
     private dbType: DBT;
     private dbName: string;
+    private log: boolean;
+    private debug: boolean;
 
-    constructor(dbUrl: string, dbType: DBT, dbName: string = dbDefualtName) {
 
-        if (dbUrl == undefined) throw new Error("Database URL is undefined")
+    constructor(dbURI: string, dbType: DBT, dbName: string = dbDefualtName, log: boolean = true, debug: boolean = false) {
+
+        if (dbURI == undefined) throw new Error("Database URL is undefined")
         if (dbType == undefined) throw new Error("Database type is undefined")
 
-        this.dbUrl = dbUrl;
+        this.dbURI = dbURI;
         this.dbType = dbType;
         this.dbName = dbName;
+        this.log = log;
+        this.debug = debug;
 
         this.initialize()
     }
@@ -31,7 +37,7 @@ export default class GuardFlux {
     private async initialize() {
         const config: Options = {
             dbName: this.dbName,
-            clientUrl: this.dbUrl,
+            clientUrl: this.dbURI,
             entities: ['dist/**/*.entity.js'],
             entitiesTs: ['src/**/*.entity.ts'],
             debug: process.env.NODE_ENV !== 'production',
@@ -57,26 +63,26 @@ export default class GuardFlux {
         }
     }
 
-
-    private async insertLog(
-        message: string,
-        metadata?: object
-    ): Promise<void> {
-        const log = new Log();
-        log.message = message;
-        log.metadata = metadata ? JSON.stringify(metadata) : undefined;
-
-        this.em?.persist(log);
-        await this.em?.flush();
+    private debugger(data: LogInput) {
+        if (this.debug) {
+            console.log(`Function: ${data.function}`)
+            console.log(`Message: ${data.message}`)
+            console.log(`Meta data: ${data.metaData}`)
+            console.log("")
+        }
     }
 
-    getEntityManager(): EntityManager | undefined {
-        return this.em;
-    }
 
-    async close(): Promise<void> {
-        if (this.orm) {
-            await this.orm.close(true);
+    private async insertLog(data: LogInput): Promise<void> {
+        if (this.log) {
+            const log = new Log();
+            log.message = data.message;
+            log.metadata = data.metaData ? JSON.stringify(data.metaData) : undefined;
+
+            this.debugger(data)
+
+            this.em?.persist(log);
+            await this.em?.flush();
         }
     }
 
@@ -88,24 +94,34 @@ export default class GuardFlux {
         keys: Keys | undefined
     ): Promise<boolean> {
 
+        let logInput: LogInput = {
+            function: "rateLimit",
+            message: "",
+            metaData: { userId, options }
+        }
+
         if (checkKey) {
             if (keys?.userKey == undefined) {
-                await this.insertLog(userKeyIsUndefined, { userId, options })
+                logInput.message = userKeyIsUndefined
+                await this.insertLog(logInput)
                 return false
             }
 
             if (keys?.dbUserKey == undefined) {
-                await this.insertLog(userKeyInDBIsUndefined, { userId, options })
+                logInput.message = userKeyInDBIsUndefined
+                await this.insertLog(logInput)
                 return false
             }
 
             if (keys?.dbUserKey == null) {
-                await this.insertLog(userKeyInDBIsNull, { userId, options })
+                logInput.message = userKeyInDBIsNull
+                await this.insertLog(logInput)
                 return false
             }
 
             if (keys?.userKey != keys?.dbUserKey) {
-                await this.insertLog(userKeyIsNotMatch, { userId, options })
+                logInput.message = userKeyIsNotMatch
+                await this.insertLog(logInput)
                 return false
             }
         }
@@ -137,7 +153,8 @@ export default class GuardFlux {
             return true;
         }
 
-        await this.insertLog(userReachMaxRateLimit, { userId, options })
+        logInput.message = userReachMaxRateLimit
+        await this.insertLog(logInput)
         return false
 
     }
@@ -155,6 +172,7 @@ export default class GuardFlux {
                 result.is_success = true;
             });
         } catch (error) {
+            this.debugger({ function: "checkObject", message: notValidObj, metaData: error })
             result.log = error;
         }
 

@@ -21,3 +21,9 @@ export interface CheckResult {
     is_success: boolean;
     log?: any;
 }
+
+export interface LogInput {
+    function: string;
+    message: string;
+    metaData : any
+}

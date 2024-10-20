@@ -38,9 +38,8 @@ export default class GuardFlux {
         const config: Options = {
             dbName: this.dbName,
             clientUrl: this.dbURI,
-            entities: ['dist/**/*.entity.js'],
-            entitiesTs: ['src/**/*.entity.ts'],
-            debug: process.env.NODE_ENV !== 'production',
+            entities: [Log, RateLimit],
+            debug: this.debug,
             driver: this.getDriver()
         };
 

@@ -4,7 +4,7 @@ import { MySqlDriver } from '@mikro-orm/mysql';
 import { SqliteDriver } from '@mikro-orm/sqlite';
 import { MongoDriver } from '@mikro-orm/mongodb';
 import { CheckResult, DBT, Keys, LogInput, RateLimitOptions } from './lib/types';
-import { Log, RateLimit } from './lib/entities';
+import { Log, RateLimit } from './lib/entity';
 import { dbDefualtName } from './lib/constants';
 import { notValidObj, userKeyInDBIsNull, userKeyInDBIsUndefined, userKeyIsNotMatch, userKeyIsUndefined, userReachMaxRateLimit } from './lib/messages';
 import Joi = require('joi');

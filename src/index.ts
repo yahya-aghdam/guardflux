@@ -24,9 +24,11 @@ export default class GuardFlux {
         this.dbUrl = dbUrl;
         this.dbType = dbType;
         this.dbName = dbName;
+
+        this.initialize()
     }
 
-    async initialize(): Promise<MikroORM> {
+    private async initialize() {
         const config: Options = {
             dbName: this.dbName,
             clientUrl: this.dbUrl,
@@ -38,7 +40,6 @@ export default class GuardFlux {
 
         this.orm = await MikroORM.init(config);
         this.em = this.orm.em;
-        return this.orm;
     }
 
     private getDriver() {

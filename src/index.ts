@@ -7,7 +7,7 @@ import { CheckResult, DBT, Keys, LogInput, RateLimitOptions } from './lib/types'
 import { Log, RateLimit } from './lib/entities';
 import { dbDefualtName } from './lib/constants';
 import { notValidObj, userKeyInDBIsNull, userKeyInDBIsUndefined, userKeyIsNotMatch, userKeyIsUndefined, userReachMaxRateLimit } from './lib/messages';
-
+import Joi = require('joi');
 
 
 export default class GuardFlux {
@@ -18,10 +18,10 @@ export default class GuardFlux {
     private dbName: string;
     private log: boolean;
     private debug: boolean;
-
+    public schema: Joi.Root = Joi;
 
     constructor(dbURI: string, dbType: DBT, dbName: string = dbDefualtName, log: boolean = true, debug: boolean = false) {
-
+        
         if (dbURI == undefined) throw new Error("Database URL is undefined")
         if (dbType == undefined) throw new Error("Database type is undefined")
 

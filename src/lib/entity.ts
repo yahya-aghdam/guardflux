@@ -1,11 +1,12 @@
 import { Entity, PrimaryKey, Property, Index } from '@mikro-orm/core';
 import { logTableName, rateLimitTableName } from './constants';
+import { randomUUID } from 'crypto';
 
 
 @Entity({ tableName: logTableName })
 export class Log {
     @PrimaryKey()
-    id!: number;
+    id: string = randomUUID();
 
     @Property()
     message!: string;
@@ -20,7 +21,7 @@ export class Log {
 @Entity({ tableName: rateLimitTableName })
 export class RateLimit {
     @PrimaryKey()
-    id!: number;
+    id: string = randomUUID();
 
     @Index()
     @Property()

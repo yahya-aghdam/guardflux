@@ -1,10 +1,10 @@
 import { MikroORM, EntityManager, Options } from '@mikro-orm/core';
-import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { CheckResult, Keys, LogInput, RateLimitOptions } from './lib/types';
 import { Log, RateLimit } from './lib/entity';
 import { dbDefualtName } from './lib/constants';
 import { notValidObj, userKeyInDBIsNull, userKeyInDBIsUndefined, userKeyIsNotMatch, userKeyIsUndefined, userReachMaxRateLimit } from './lib/messages';
 import Joi = require('joi');
+import { MongoDriver } from '@mikro-orm/mongodb';
 
 
 export default class GuardFlux {
@@ -34,7 +34,7 @@ export default class GuardFlux {
             clientUrl: this.dbURI,
             entities: [Log, RateLimit],
             debug: this.debug,
-            driver: PostgreSqlDriver
+            driver: MongoDriver
         };
 
         this.orm = await MikroORM.init(config);
@@ -116,12 +116,15 @@ export default class GuardFlux {
             rateLimit.requestCount = 0;
             rateLimit.lastRequest = currentTime;
             this.em?.persist(rateLimit);
+
+            return true;
         }
 
         if (rateLimit.lastRequest < cycleStart) {
             rateLimit.requestCount = 1;
             rateLimit.lastRequest = currentTime;
             await this.em?.flush();
+
             return true;
         }
 
@@ -129,11 +132,13 @@ export default class GuardFlux {
             rateLimit.requestCount++;
             rateLimit.lastRequest = currentTime;
             await this.em?.flush();
+
             return true;
         }
 
         logInput.message = userReachMaxRateLimit
         await this.insertLog(logInput)
+
         return false
 
     }

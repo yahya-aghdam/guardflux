@@ -1,6 +1,6 @@
 {
   "name": "guardflux",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "description": "A light callable lib to keep your API alive",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

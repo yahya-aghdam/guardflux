@@ -54,8 +54,7 @@ export default class GuardFlux {
 
             localDebugger(data, this.debug)
 
-            this.em?.persist(log);
-            await this.em?.flush();
+            await this.em?.persist(log).flush()
         }
     }
 
@@ -109,8 +108,7 @@ export default class GuardFlux {
             rateLimit.userId = userId;
             rateLimit.requestCount = 0;
             rateLimit.lastRequest = currentTime;
-            this.em?.persist(rateLimit);
-            await this.em?.flush();
+            await this.em?.persist(rateLimit).flush()
 
             return true;
         }
@@ -118,7 +116,7 @@ export default class GuardFlux {
         if (rateLimit.lastRequest < cycleStart) {
             rateLimit.requestCount = 1;
             rateLimit.lastRequest = currentTime;
-            await this.em?.flush();
+            await this.em?.persist(rateLimit).flush()
 
             return true;
         }
@@ -126,7 +124,7 @@ export default class GuardFlux {
         if (rateLimit.requestCount < maxRequests) {
             rateLimit.requestCount++;
             rateLimit.lastRequest = currentTime;
-            await this.em?.flush();
+            await this.em?.persist(rateLimit).flush()
 
             return true;
         }

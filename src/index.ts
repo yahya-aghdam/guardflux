@@ -5,6 +5,7 @@ import { dbDefualtName } from './lib/constants';
 import { notValidObj, userKeyInDBIsNull, userKeyInDBIsUndefined, userKeyIsNotMatch, userKeyIsUndefined, userReachMaxRateLimit } from './lib/messages';
 import Joi = require('joi');
 import { MongoDriver } from '@mikro-orm/mongodb';
+import { isObjectEmpty, localDebugger } from './lib/helpers';
 
 
 export default class GuardFlux {
@@ -17,7 +18,7 @@ export default class GuardFlux {
     public schema: Joi.Root = Joi;
 
     constructor(dbURI: string, dbName: string = dbDefualtName, log: boolean = true, debug: boolean = false) {
-        
+
         if (dbURI == undefined) throw new Error("Database URL is undefined")
 
         this.dbURI = dbURI;
@@ -42,14 +43,7 @@ export default class GuardFlux {
     }
 
 
-    private debugger(data: LogInput) {
-        if (this.debug) {
-            console.log(`Function: ${data.function}`)
-            console.log(`Message: ${data.message}`)
-            console.log(`Meta data: ${data.metaData}`)
-            console.log("")
-        }
-    }
+
 
 
     private async insertLog(data: LogInput): Promise<void> {
@@ -58,7 +52,7 @@ export default class GuardFlux {
             log.message = data.message;
             log.metadata = data.metaData ? JSON.stringify(data.metaData) : undefined;
 
-            this.debugger(data)
+            localDebugger(data, this.debug)
 
             this.em?.persist(log);
             await this.em?.flush();
@@ -145,23 +139,32 @@ export default class GuardFlux {
 
     async checkObject(
         obj: any,
-        schema: any,
+        schema: Joi.ObjectSchema<any>,
     ): Promise<CheckResult> {
         let result: CheckResult = {
             is_success: false,
         };
+
+
+        if (isObjectEmpty(obj)) {
+            result.log = "Object is empty"
+            return result;
+        }
 
         try {
             await schema.validateAsync(obj).then(() => {
                 result.is_success = true;
             });
         } catch (error) {
-            this.debugger({ function: "checkObject", message: notValidObj, metaData: error })
+            const data: LogInput = { function: "checkObject", message: notValidObj, metaData: error }
+            
+            localDebugger(data, this.debug)
             result.log = error;
         }
 
         return result;
     }
 }
+
 
 

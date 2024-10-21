@@ -110,6 +110,7 @@ export default class GuardFlux {
             rateLimit.requestCount = 0;
             rateLimit.lastRequest = currentTime;
             this.em?.persist(rateLimit);
+            await this.em?.flush();
 
             return true;
         }

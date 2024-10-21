@@ -1,4 +1,3 @@
-export type DBT = 'postgresql' | 'mysql' | 'sqlite' | 'mongodb'
 
 export interface RateLimitOptions {
     route: string;

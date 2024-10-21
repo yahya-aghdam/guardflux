@@ -1,9 +1,6 @@
 import { MikroORM, EntityManager, Options } from '@mikro-orm/core';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
-import { MySqlDriver } from '@mikro-orm/mysql';
-import { SqliteDriver } from '@mikro-orm/sqlite';
-import { MongoDriver } from '@mikro-orm/mongodb';
-import { CheckResult, DBT, Keys, LogInput, RateLimitOptions } from './lib/types';
+import { CheckResult, Keys, LogInput, RateLimitOptions } from './lib/types';
 import { Log, RateLimit } from './lib/entity';
 import { dbDefualtName } from './lib/constants';
 import { notValidObj, userKeyInDBIsNull, userKeyInDBIsUndefined, userKeyIsNotMatch, userKeyIsUndefined, userReachMaxRateLimit } from './lib/messages';
@@ -14,19 +11,16 @@ export default class GuardFlux {
     private orm?: MikroORM;
     private em?: EntityManager;
     private dbURI: string;
-    private dbType: DBT;
     private dbName: string;
     private log: boolean;
     private debug: boolean;
     public schema: Joi.Root = Joi;
 
-    constructor(dbURI: string, dbType: DBT, dbName: string = dbDefualtName, log: boolean = true, debug: boolean = false) {
+    constructor(dbURI: string, dbName: string = dbDefualtName, log: boolean = true, debug: boolean = false) {
         
         if (dbURI == undefined) throw new Error("Database URL is undefined")
-        if (dbType == undefined) throw new Error("Database type is undefined")
 
         this.dbURI = dbURI;
-        this.dbType = dbType;
         this.dbName = dbName;
         this.log = log;
         this.debug = debug;
@@ -40,27 +34,13 @@ export default class GuardFlux {
             clientUrl: this.dbURI,
             entities: [Log, RateLimit],
             debug: this.debug,
-            driver: this.getDriver()
+            driver: PostgreSqlDriver
         };
 
         this.orm = await MikroORM.init(config);
         this.em = this.orm.em;
     }
 
-    private getDriver() {
-        switch (this.dbType) {
-            case 'postgresql':
-                return PostgreSqlDriver;
-            case 'mysql':
-                return MySqlDriver;
-            case 'sqlite':
-                return SqliteDriver;
-            case 'mongodb':
-                return MongoDriver;
-            default:
-                throw new Error('Unsupported database type');
-        }
-    }
 
     private debugger(data: LogInput) {
         if (this.debug) {

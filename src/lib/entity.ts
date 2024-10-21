@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 @Entity({ tableName: logTableName })
 export class Log {
     @PrimaryKey()
-    id: string = randomUUID();
+    _id: string = randomUUID();
 
     @Property()
     message!: string;
@@ -21,7 +21,7 @@ export class Log {
 @Entity({ tableName: rateLimitTableName })
 export class RateLimit {
     @PrimaryKey()
-    id: string = randomUUID();
+    _id: string = randomUUID();
 
     @Index()
     @Property()

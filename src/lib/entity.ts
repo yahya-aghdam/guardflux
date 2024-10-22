@@ -1,22 +1,7 @@
 import { Entity, PrimaryKey, Property, Index } from '@mikro-orm/core';
-import { logTableName, rateLimitTableName } from './constants';
+import { rateLimitTableName } from './constants';
 import { randomUUID } from 'crypto';
 
-
-@Entity({ tableName: logTableName })
-export class Log {
-    @PrimaryKey()
-    _id: string = randomUUID();
-
-    @Property()
-    message!: string;
-
-    @Property({ nullable: true })
-    metadata?: string;
-
-    @Property()
-    timestamp: Date = new Date(); 
-}
 
 @Entity({ tableName: rateLimitTableName })
 export class RateLimit {

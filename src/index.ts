@@ -1,169 +1,123 @@
-import { MikroORM, EntityManager, Options } from '@mikro-orm/core';
-import { CheckResult, Keys, LogInput, RateLimitOptions } from './lib/types';
-import { Log, RateLimit } from './lib/entity';
+import { MikroORM, Options } from '@mikro-orm/core';
+import { CheckResult, DbConfig, DBType, RateLimitOptions } from './lib/types';
+import { RateLimit } from './lib/entity';
 import { dbDefualtName } from './lib/constants';
-import { notValidObj, userKeyInDBIsNull, userKeyInDBIsUndefined, userKeyIsNotMatch, userKeyIsUndefined, userReachMaxRateLimit } from './lib/messages';
-import Joi = require('joi');
+import { emptyObj, userReachMaxRateLimit } from './lib/messages';
 import { MongoDriver } from '@mikro-orm/mongodb';
-import { isObjectEmpty, localDebugger } from './lib/helpers';
+import { MySqlDriver } from '@mikro-orm/mysql';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { isObjectEmpty, devDebugger } from './lib/helpers';
+import Joi = require('joi');
 
 
-export default class GuardFlux {
-    private orm?: MikroORM;
-    private em?: EntityManager;
-    private dbURI: string;
-    private dbName: string;
-    private log: boolean;
-    private debug: boolean;
-    public schema: Joi.Root = Joi;
-
-    constructor(dbURI: string, dbName: string = dbDefualtName, log: boolean = true, debug: boolean = false) {
-
-        if (dbURI == undefined) throw new Error("Database URL is undefined")
-
-        this.dbURI = dbURI;
-        this.dbName = dbName;
-        this.log = log;
-        this.debug = debug;
-
-        this.initialize()
+function getDriver(dbType: DBType) {
+    switch (dbType) {
+        case 'postgresql':
+            return PostgreSqlDriver;
+        case 'mysql':
+            return MySqlDriver;
+        case 'mongodb':
+            return MongoDriver;
+        default:
+            throw new Error('Unsupported database type');
     }
+}
 
-    private async initialize() {
-        const config: Options = {
-            dbName: this.dbName,
-            clientUrl: this.dbURI,
-            entities: [Log, RateLimit],
-            debug: this.debug,
-            driver: MongoDriver
-        };
+export const schema: Joi.Root = Joi
 
-        this.orm = await MikroORM.init(config);
-        this.em = this.orm.em;
-    }
+export async function checkObject(
+    obj: any,
+    schema: Joi.ObjectSchema<any>,
+    devMode: boolean = true
+): Promise<CheckResult> {
 
+    let result: CheckResult = {
+        isValid: false,
+    };
 
-
-
-
-    private async insertLog(data: LogInput): Promise<void> {
-        if (this.log) {
-            const log = new Log();
-            log.message = data.message;
-            log.metadata = data.metaData ? JSON.stringify(data.metaData) : undefined;
-
-            localDebugger(data, this.debug)
-
-            await this.em?.persist(log).flush()
-        }
+    if (isObjectEmpty(obj)) {
+        result.log = emptyObj
+        return result;
     }
 
 
-    async rateLimit(
-        userId: string,
-        options: RateLimitOptions,
-        checkKey: boolean = false,
-        keys: Keys | undefined
-    ): Promise<boolean> {
+    try {
+        await schema.validateAsync(obj).then(() => {
+            result.isValid = true;
+        });
+    } catch (error) {
+        result.log = error;
+    }
 
-        let logInput: LogInput = {
-            function: "rateLimit",
-            message: "",
-            metaData: { userId, options }
-        }
+    devDebugger(result, devMode)
+    return result;
+}
 
-        if (checkKey) {
-            if (keys?.userKey == undefined) {
-                logInput.message = userKeyIsUndefined
-                await this.insertLog(logInput)
-                return false
-            }
+export async function rateLimit(
+    userId: string,
+    options: RateLimitOptions,
+    dbConfig: DbConfig,
+    devMode: boolean = true
+): Promise<CheckResult> {
 
-            if (keys?.dbUserKey == undefined) {
-                logInput.message = userKeyInDBIsUndefined
-                await this.insertLog(logInput)
-                return false
-            }
 
-            if (keys?.dbUserKey == null) {
-                logInput.message = userKeyInDBIsNull
-                await this.insertLog(logInput)
-                return false
-            }
+    let result: CheckResult = {
+        isValid: true,
+    };
 
-            if (keys?.userKey != keys?.dbUserKey) {
-                logInput.message = userKeyIsNotMatch
-                await this.insertLog(logInput)
-                return false
-            }
-        }
+    const config: Options = {
+        dbName: dbConfig.dbName || dbDefualtName,
+        clientUrl: dbConfig.dbURI,
+        entities: [RateLimit],
+        debug: dbConfig.debug,
+        driver: getDriver(dbConfig.dbType)
+    };
 
-        const { cycleTime, maxRequests } = options;
-        const currentTime = new Date();
-        const cycleStart = new Date(currentTime.getTime() - cycleTime * 1000);
+    const orm = await MikroORM.init(config)
+    const entityManager = orm.em
 
-        let rateLimit = await this.em?.findOne(RateLimit, { userId });
-        if (!rateLimit) {
-            rateLimit = new RateLimit();
-            rateLimit.userId = userId;
-            rateLimit.requestCount = 0;
-            rateLimit.lastRequest = currentTime;
-            await this.em?.persist(rateLimit).flush()
+    const currentTime = new Date();
+    const cycleStart = new Date(currentTime.getTime() - options.cycleTime * 1000);
 
-            return true;
-        }
+    let rateLimit = await entityManager.findOne(RateLimit, { userId });
+
+    if (!rateLimit) {
+        rateLimit = new RateLimit();
+        rateLimit.userId = userId;
+        rateLimit.requestCount = 0;
+        rateLimit.lastRequest = currentTime;
+
+        devDebugger(rateLimit, devMode)
+        entityManager.create(RateLimit, rateLimit)
+
+        return result;
+    } else {
 
         if (rateLimit.lastRequest < cycleStart) {
             rateLimit.requestCount = 1;
             rateLimit.lastRequest = currentTime;
-            await this.em?.persist(rateLimit).flush()
 
-            return true;
-        }
+            devDebugger(rateLimit, devMode)
+            await entityManager.persistAndFlush(rateLimit)
 
-        if (rateLimit.requestCount < maxRequests) {
-            rateLimit.requestCount++;
-            rateLimit.lastRequest = currentTime;
-            await this.em?.persist(rateLimit).flush()
-
-            return true;
-        }
-
-        logInput.message = userReachMaxRateLimit
-        await this.insertLog(logInput)
-
-        return false
-
-    }
-
-    async checkObject(
-        obj: any,
-        schema: Joi.ObjectSchema<any>,
-    ): Promise<CheckResult> {
-        let result: CheckResult = {
-            is_success: false,
-        };
-
-
-        if (isObjectEmpty(obj)) {
-            result.log = "Object is empty"
             return result;
         }
 
-        try {
-            await schema.validateAsync(obj).then(() => {
-                result.is_success = true;
-            });
-        } catch (error) {
-            const data: LogInput = { function: "checkObject", message: notValidObj, metaData: error }
-            
-            localDebugger(data, this.debug)
-            result.log = error;
+        if (rateLimit.requestCount < options.maxRequests) {
+            rateLimit.requestCount++;
+            rateLimit.lastRequest = currentTime;
+
+            devDebugger(rateLimit, devMode)
+            await entityManager.persistAndFlush(rateLimit)
+
+            return result;
         }
-
-        return result;
     }
+
+    result = {
+        isValid: false,
+        log: userReachMaxRateLimit
+    }
+    devDebugger(result, devMode)
+    return result
 }
-
-
-

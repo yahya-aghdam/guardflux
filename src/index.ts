@@ -70,7 +70,8 @@ export async function rateLimit(
         clientUrl: dbConfig.dbURI,
         entities: [RateLimit],
         debug: dbConfig.debug,
-        driver: getDriver(dbConfig.dbType)
+        driver: getDriver(dbConfig.dbType),
+        allowGlobalContext: true
     };
 
     const orm = await MikroORM.init(config)
@@ -88,7 +89,7 @@ export async function rateLimit(
         rateLimit.lastRequest = currentTime;
 
         devDebugger(rateLimit, devMode)
-        entityManager.create(RateLimit, rateLimit)
+        entityManager.fork({}).create(RateLimit, rateLimit)
 
         return result;
     } else {

@@ -85,6 +85,7 @@ export async function rateLimit(
     if (!rateLimit) {
         rateLimit = new RateLimit();
         rateLimit.userId = userId;
+        rateLimit.route = options.route;
         rateLimit.requestCount = 0;
         rateLimit.lastRequest = currentTime;
 

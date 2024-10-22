@@ -86,7 +86,7 @@ export async function rateLimit(
         rateLimit = new RateLimit();
         rateLimit.userId = userId;
         rateLimit.route = options.route;
-        rateLimit.requestCount = 0;
+        rateLimit.requestCount = 1;
         rateLimit.lastRequest = currentTime;
 
         devDebugger(rateLimit, devMode)
@@ -96,7 +96,7 @@ export async function rateLimit(
         return result;
     } else {
 
-        if (rateLimit.lastRequest < cycleStart) {
+        if (rateLimit.lastRequest <= cycleStart) {
             rateLimit.requestCount = 1;
             rateLimit.lastRequest = currentTime;
 

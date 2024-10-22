@@ -1,10 +1,10 @@
 export type DBType = 'postgresql' | 'mysql' | 'mongodb'
 
 export interface DbConfig {
-    dbName: string;
+    dbName?: string;
     dbType: DBType;
     dbURI: string;
-    debug: boolean;
+    dbDebug: boolean;
 }
 
 export interface RateLimitOptions {

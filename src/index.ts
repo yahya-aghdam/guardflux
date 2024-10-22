@@ -69,13 +69,13 @@ export async function rateLimit(
         dbName: dbConfig.dbName || dbDefualtName,
         clientUrl: dbConfig.dbURI,
         entities: [RateLimit],
-        debug: dbConfig.debug,
+        debug: dbConfig.dbDebug,
         driver: getDriver(dbConfig.dbType),
         allowGlobalContext: true
     };
 
     const orm = await MikroORM.init(config)
-    const entityManager = orm.em
+    const entityManager = orm.em.fork()
 
     const currentTime = new Date();
     const cycleStart = new Date(currentTime.getTime() - options.cycleTime * 1000);
@@ -89,7 +89,8 @@ export async function rateLimit(
         rateLimit.lastRequest = currentTime;
 
         devDebugger(rateLimit, devMode)
-        entityManager.fork({}).create(RateLimit, rateLimit)
+        entityManager.create(RateLimit, rateLimit)
+        await entityManager.flush();
 
         return result;
     } else {

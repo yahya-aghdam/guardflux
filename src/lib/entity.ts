@@ -13,6 +13,9 @@ export class RateLimit {
     userId!: string; // Or IP address / API key
 
     @Property()
+    route!: string;
+
+    @Property()
     requestCount: number = 0;
 
     @Property()

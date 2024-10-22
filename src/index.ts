@@ -80,7 +80,7 @@ export async function rateLimit(
     const currentTime = new Date();
     const cycleStart = new Date(currentTime.getTime() - options.cycleTime * 1000);
 
-    let rateLimit = await entityManager.findOne(RateLimit, { userId });
+    let rateLimit = await entityManager.findOne(RateLimit, { userId: userId, route: options.route });
 
     if (!rateLimit) {
         rateLimit = new RateLimit();

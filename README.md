@@ -8,7 +8,7 @@ A light callable lib to keep your Node.Js API alive
 - [Guardflux](#guardflux)
   - [Installation](#installation)
   - [Functions and usage](#functions-and-usage)
-    - [schema()](#schema)
+    - [schema](#schema)
     - [checkObject()](#checkobject)
     - [rateLimit()](#ratelimit)
   - [License](#license)
@@ -21,7 +21,7 @@ npm i guardflux
 
 ## Functions and usage
 
-### schema()
+### schema
 
 This is expansion of [Joi](https://github.com/hapijs/joi) lib that we use it to verify API input. It can be `query` or `body` of a request. Here is the example of usage:
 
@@ -57,7 +57,7 @@ You can use `check.isValid` to response the user that given data in request is v
 This is a very useful fucntion that make rate limit for every route based on user api-key/id/ip that you pass. We use [MikroOrm](https://github.com/mikro-orm/mikro-orm) because it is light and can handle several DBs. Because of needing to save data in DB we have to config the DB options first:
 
 ```ts
-const dbOptions: DbConfig = {
+const dbConfig: DbConfig = {
     dbName: "guardflux", // Default name id "guardflux" but you can pass any name you want
     dbType: "mongodb", // Choose which DB you want to work with it. Supported DBs are 1-MySQL 2-MongoDB 3-PostgreSQL
     dbURI: MONGO_URI, // Pass URI of your DB
@@ -99,14 +99,14 @@ const rlOptions: RateLimitOptions = {
     maxRequests: 5 // Max requests that a user can make in cycleTime
 }
 
-const dbOptions: DbConfig = {
+const dbConfig: DbConfig = {
     dbName: "guardflux", // Default name id "guardflux" but you can pass any name you want
     dbType: "mongodb", // Choose which DB you want to work with it. Supported DBs are 1-MySQL 2-MongoDB 3-PostgreSQL
     dbURI: MONGO_URI, // Pass URI of your DB
     dbDebug: true // Make MikroOrm debug mode on
 }
 
-const rl: CheckResult = await rateLimit(user_given_api_key, rlOptions, dbOptions)
+const rl: CheckResult = await rateLimit(user_given_api_key, rlOptions, dbConfig)
 ```
 
 ## License

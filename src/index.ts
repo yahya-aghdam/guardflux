@@ -17,7 +17,7 @@ import Joi = require('joi');
  * @returns The MikroORM driver for the specified database type.
  * @throws An error if the provided database type is not supported.
  */
-function getDriver(dbType: DBType) {
+export function getDriver(dbType: DBType) {
     switch (dbType) {
         case 'postgresql':
             return PostgreSqlDriver; // Returns the PostgreSQL driver

@@ -1,12 +1,13 @@
 import { MikroORM, Options } from '@mikro-orm/core';
 import { CheckResult, DbConfig, DBType, RateLimitOptions } from './lib/types';
 import { RateLimit } from './lib/entity';
-import { dbDefualtName } from './lib/constants';
+import { dbDefaultName } from './lib/constants';
 import { emptyObj, userReachMaxRateLimit } from './lib/messages';
 import { MongoDriver } from '@mikro-orm/mongodb';
 import { MySqlDriver } from '@mikro-orm/mysql';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { isObjectEmpty, devDebugger } from './lib/helpers';
+import { createClient } from 'redis';
 import Joi = require('joi');
 
 
@@ -25,6 +26,9 @@ export function getDriver(dbType: DBType) {
             return MySqlDriver;      // Returns the MySQL driver
         case 'mongodb':
             return MongoDriver;      // Returns the MongoDB driver
+        case 'redis':
+            // Redis does not use a MikroORM driver; handled separately in rateLimit
+            throw new Error('Redis is not supported by MikroORM. Use dbType "redis" to run the Redis implementation in rateLimit.');
         default:
             throw new Error('Unsupported database type'); // Throws an error if the database type is not recognized
     }
@@ -102,9 +106,42 @@ export async function rateLimit(
         isValid: true, // Initialize result as valid
     };
 
+    // If Redis is selected, use Redis implementation (simple fixed window using TTL)
+    if (dbConfig.dbType === 'redis') {
+        const prefix = (dbConfig as DbConfig).redisPrefix || dbDefaultName;
+        const key = `${prefix}:${userId}:${options.route}`;
+
+        const client = createClient({ url: dbConfig.dbURI });
+        try {
+            await client.connect();
+            const current = await client.incr(key);
+            if (current === 1) {
+                // First request in the window, set expiry to cycle time
+                await client.expire(key, options.cycleTime);
+            }
+
+            devDebugger({ key, current }, devMode);
+
+            await client.disconnect();
+
+            if (current > options.maxRequests) {
+                result = { isValid: false, log: userReachMaxRateLimit };
+                devDebugger(result, devMode);
+                return result;
+            }
+
+            return result;
+        } catch (err) {
+            // On Redis error, treat as allowed (or you may want to return an error)
+            devDebugger(err, devMode);
+            try { await client.disconnect(); } catch (e) { console.error(e) }
+            return result;
+        }
+    }
+
     // Configuration for the MikroORM connection
     const config: Options = {
-        dbName: dbConfig.dbName || dbDefualtName, // Use provided DB name or default
+        dbName: dbConfig.dbName || dbDefaultName, // Use provided DB name or default
         clientUrl: dbConfig.dbURI, // MongoDB connection URI
         entities: [RateLimit], // Specify the RateLimit entity to manage
         debug: dbConfig.dbDebug, // Debug mode from DB configuration

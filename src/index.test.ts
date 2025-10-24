@@ -1,3 +1,23 @@
+// Mock redis before importing module that uses it
+jest.mock('redis', () => {
+    // counters simulate a simple in-memory redis
+    let counters: Record<string, number> = {};
+    const createClient = jest.fn(() => ({
+        connect: jest.fn(async () => {}),
+        incr: jest.fn(async (key: string) => {
+            counters[key] = (counters[key] || 0) + 1;
+            return counters[key];
+        }),
+        expire: jest.fn(async (key: string, ttl: number) => true),
+        disconnect: jest.fn(async () => {})
+    }));
+
+    return {
+        createClient,
+        __resetMock: () => { counters = {}; createClient.mockClear(); }
+    };
+});
+
 import { getDriver, schema, checkObject, rateLimit } from './index';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { MySqlDriver } from '@mikro-orm/mysql';
@@ -98,5 +118,54 @@ describe('rateLimit', () => {
         const result = await rateLimit('user4', mockOptions, mockDbConfig);
         expect(result.isValid).toBe(false);
         expect(result.log).toBeDefined();
+    });
+});
+
+describe('rateLimit - redis', () => {
+    const redisModule = require('redis') as any;
+
+    const redisConfig: DbConfig = {
+        dbType: 'redis',
+        dbURI: 'redis://127.0.0.1:6379',
+        dbDebug: false,
+        redisPrefix: 'testPrefix'
+    };
+
+    const mockOptions: RateLimitOptions = {
+        route: '/redis-test',
+        maxRequests: 3,
+        cycleTime: 60
+    };
+
+    beforeEach(() => {
+        if (redisModule.__resetMock) redisModule.__resetMock();
+    });
+
+    it('should allow requests under limit', async () => {
+        const res = await rateLimit('redisUser1', mockOptions, redisConfig);
+        expect(res.isValid).toBe(true);
+    });
+
+    it('should block after exceeding limit', async () => {
+        for (let i = 0; i < mockOptions.maxRequests; i++) {
+            const r = await rateLimit('redisUser2', mockOptions, redisConfig);
+            expect(r.isValid).toBe(true);
+        }
+        const res = await rateLimit('redisUser2', mockOptions, redisConfig);
+        expect(res.isValid).toBe(false);
+        expect(res.log).toBeDefined();
+    });
+
+    it('should call expire on first increment', async () => {
+        const createClient = redisModule.createClient as jest.Mock;
+        expect(createClient).toBeDefined();
+
+        await rateLimit('redisUser3', mockOptions, redisConfig);
+
+        // Get the client instance used by last call
+        const calls = createClient.mock.results;
+        expect(calls.length).toBeGreaterThan(0);
+        const clientInstance = calls[calls.length - 1].value;
+        expect(clientInstance.expire).toHaveBeenCalled();
     });
 });

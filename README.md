@@ -1,7 +1,7 @@
 # Guardflux
 
 ![License](https://img.shields.io/badge/License-MIT-blue)
-![Version](https://img.shields.io/badge/Version-2.2.0-orange)
+![Version](https://img.shields.io/badge/Version-3.0.0-orange)
 
 A light callable lib to keep your Node.Js API alive
 
@@ -33,14 +33,14 @@ const ipSchema = schema.object({
 
 ### checkObject()
 
-Then you can verify the input with `checkObject()` function and it returns result with two elements `isValid: boolean` and `log: any`. `isValid` returns `true` if given object and schema match and `log` returns `Joi` log if an error happen. Also this function has an element called `devMode` that prints all logs in `console` to get what is happening in function and defult setted to `true`. Here is the full example:
+Then you can verify the input with `checkObject()` function and it returns result with two elements `isValid: boolean` and `log: any`. `isValid` returns `true` if given object and schema match and `log` returns `Joi` log if an error happen. Also this function has an element called `devMode` that prints all logs in `console` to get what is happening in function and default set to `true`. Here is the full example:
 
 ```ts
 import { checkObject, schema } from 'guardflux'
 import { CheckResult } from 'guardflux/dist/lib/types'
 
 ...
-// This is the apikey or user ip or id that you can pass to function
+// This is the api-key or user ip or id that you can pass to function
 const user_given_api_key: string = "x2a45B78C0"
 
 const ipSchema = schema.object({
@@ -54,7 +54,7 @@ You can use `check.isValid` to response the user that given data in request is v
 
 ### rateLimit()
 
-This is a very useful fucntion that make rate limit for every route based on user api-key/id/ip that you pass. We use [MikroOrm](https://github.com/mikro-orm/mikro-orm) because it is light and can handle several DBs. Because of needing to save data in DB we have to config the DB options first:
+This is a very useful function that make rate limit for every route based on user api-key/id/ip that you pass. We use [MikroOrm](https://github.com/mikro-orm/mikro-orm) because it is light and can handle several DBs. Because of needing to save data in DB we have to config the DB options first:
 
 ```ts
 const dbConfig: DbConfig = {
@@ -72,13 +72,35 @@ If your DB has username and password, you can add it to you URI string. These ar
 | mongo      |      mongodb://127.0.0.1:27017       |
 | mysql      |     mysql://root@127.0.0.1:3306      |
 | postgresql | postgresql://postgres@127.0.0.1:5432 |
+| redis      | redis://127.0.0.1:6379               |
+
+Redis support
+
+You can now use Redis as the backing store for rate limiting. Redis uses a simple fixed-window counter with TTL. To enable Redis, set dbType to "redis" and pass your redis URI in dbURI. Optionally set redisPrefix in DbConfig to namespace keys.
+
+Example dbConfig for Redis:
+
+```ts README.md
+const dbConfig: DbConfig = {
+    dbType: 'redis',
+    dbURI: 'redis://:password@127.0.0.1:6379', // or 'redis://127.0.0.1:6379' if no password
+    dbDebug: false,
+    redisPrefix: 'guardflux' // optional key prefix
+}
+```
+
+Behavior notes:
+
+- Key format: {prefix}:{userId}:{route}
+- Uses INCR and EXPIRE to implement a fixed window counter (cycleTime seconds).
+- If Redis is unavailable the function currently logs the error and allows the request; change as needed.
 
 After we config the DB, we have to add `options` for `rateLimit` function:
 
 ```ts
 const rlOptions: RateLimitOptions = {
     route: "/api/test_route", // API route to specify ratelimit based on route
-    cycleTime: 60, // Rate limit cycle based on secounds
+    cycleTime: 60, // Rate limit cycle based on seconds
     maxRequests: 5 // Max requests that a user can make in cycleTime
 }
 ```
@@ -90,18 +112,18 @@ import { checkObject, schema } from 'guardflux'
 import { CheckResult } from 'guardflux/dist/lib/types'
 
 ...
-// This is the apikey or user ip or id that you can pass to function
+// This is the api-key or user ip or id that you can pass to function
 const user_given_api_key: string = "x2a45B78C0"
 
 const rlOptions: RateLimitOptions = {
     route: "/api/test_route", // API route to specify ratelimit based on route
-    cycleTime: 60, // Rate limit cycle based on secounds
+    cycleTime: 60, // Rate limit cycle based on seconds
     maxRequests: 5 // Max requests that a user can make in cycleTime
 }
 
 const dbConfig: DbConfig = {
     dbName: "guardflux", // Default name id "guardflux" but you can pass any name you want
-    dbType: "mongodb", // Choose which DB you want to work with it. Supported DBs are 1-MySQL 2-MongoDB 3-PostgreSQL
+    dbType: "mongodb", // Choose which DB you want to work with it. Supported DBs are 1-MySQL 2-MongoDB 3-PostgreSQL 4-Redis
     dbURI: MONGO_URI, // Pass URI of your DB
     dbDebug: true // Make MikroOrm debug mode on
 }

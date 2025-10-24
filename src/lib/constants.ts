@@ -1,3 +1,3 @@
 
-export const dbDefualtName = "guardflux"
+export const dbDefaultName = "guardflux"
 export const rateLimitTableName = "ratelimit"
